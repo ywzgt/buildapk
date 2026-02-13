@@ -1,0 +1,41 @@
+name: build
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '10 00 */60 * *'
+jobs:
+  build:
+    strategy:
+      matrix:
+        target: [ KernelSU, Magisk ]
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v6
+    - name: Build
+      run: ./${{ matrix.target }}.build.sh
+      env:
+        ANDROID_KEY: ${{ secrets.ANDROID_JKS_EC }}
+        ANDROID_KEY_RSA: ${{ secrets.ANDROID_JKS_RSA }}
+        KS_PASS: ${{ secrets.KEYSTORE_PASSWORD_EC }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS_EC }}
+        KEY_PASS: ${{ secrets.KEY_PASSWORD_EC }}
+        KS_PASS_RSA: ${{ secrets.KEYSTORE_PASSWORD_RSA }}
+        KEY_ALIAS_RSA: ${{ secrets.KEY_ALIAS_RSA }}
+        KEY_PASS_RSA: ${{ secrets.KEY_PASSWORD_RSA }}
+    - name: Upload to Releases
+      if: env.UP_RELEASE != ''
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.REL_NAME }}
+        files: ${{ env.UP_DIR }}/*
+        fail_on_unmatched_files: true
+    - name: Setup tmate ssh session
+      if: failure() && env.NO_ERROR != 'y'
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60
+      with:
+        limit-access-to-actor: true
