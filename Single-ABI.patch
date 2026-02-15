@@ -1,0 +1,38 @@
+--- a/app/buildSrc/src/main/java/Setup.kt
++++ b/app/buildSrc/src/main/java/Setup.kt
+@@ -130,6 +130,7 @@ fun Project.setupCoreLib() {
+         val variant = name
+         val variantCapped = name.replaceFirstChar { it.uppercase() }
+         val abiList = Config.abiList
++        val busyboxFile = downloadFile(BUSYBOX_DOWNLOAD_URL, BUSYBOX_ZIP_CHECKSUM)
+
+         val syncLibs = tasks.register("sync${variantCapped}JniLibs", Sync::class) {
+             into("src/$variant/jniLibs")
+@@ -140,13 +141,9 @@ fun Project.setupCoreLib() {
+                         rename { if (it.endsWith(".so")) it else "lib$it.so" }
+                     }
+                 }
+-            }
+-            from(zipTree(downloadFile(BUSYBOX_DOWNLOAD_URL, BUSYBOX_ZIP_CHECKSUM)))
+-            include(abiList.map { "$it/libbusybox.so" })
+-            onlyIf {
+-                if (inputs.sourceFiles.files.size != abiList.size * 6)
+-                    throw StopExecutionException("Please build binaries first! (./build.py binary)")
+-                true
++                from(zipTree(busyboxFile)) {
++                    include("$abi/libbusybox.so")
++                }
+             }
+         }
+
+--- a/build.py
++++ b/build.py
+@@ -75,7 +75,7 @@ abi_alias = {
+     "arm64": "arm64-v8a",
+     "x64": "x86_64",
+ }
+-default_abis = support_abis.keys() - {"riscv64"}
++default_abis = {(os.getenv("MAGISK_ABI", "arm64-v8a"))}
+ support_targets = {"magisk", "magiskinit", "magiskboot", "magiskpolicy", "resetprop"}
+ default_targets = support_targets - {"resetprop"}
+ rust_targets = default_targets.copy()
